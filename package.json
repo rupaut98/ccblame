@@ -1,0 +1,54 @@
+{
+  "name": "cc-agentcost",
+  "version": "0.0.0",
+  "description": "Per-subagent cost attribution for Claude Code — which subagent burned the budget?",
+  "type": "module",
+  "bin": {
+    "cc-agentcost": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18.3"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "lint": "biome check src test",
+    "format": "biome check --write src test",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "subagent",
+    "cost",
+    "tokens",
+    "usage",
+    "ccusage",
+    "cli"
+  ],
+  "license": "MIT",
+  "author": "rupaut98",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rupaut98/cc-agentcost.git"
+  },
+  "homepage": "https://github.com/rupaut98/cc-agentcost#readme",
+  "bugs": "https://github.com/rupaut98/cc-agentcost/issues",
+  "dependencies": {
+    "cli-table3": "^0.6.5",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.10.0",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.9"
+  }
+}
