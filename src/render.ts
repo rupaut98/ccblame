@@ -175,6 +175,7 @@ export function groupsToJSON(by: string, total: number, groups: Group[]) {
       subagent_cost_usd: g.subCost,
       count: g.count,
       subagent_count: g.subCount,
+      unpriced: g.unpriced,
     })),
   };
 }
