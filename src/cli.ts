@@ -192,7 +192,8 @@ function main(): void {
     const dimTotal = allGroups.reduce((s, g) => s + g.cost, 0);
     const groups = applyTop(allGroups, v.top);
     if (v.json) {
-      out.write(`${JSON.stringify(groupsToJSON(by, dimTotal, groups), null, 2)}\n`);
+      // Emit every group so the rows sum to total_cost_usd; --top only trims the printed table.
+      out.write(`${JSON.stringify(groupsToJSON(by, dimTotal, allGroups), null, 2)}\n`);
       return;
     }
     if (groups.length === 0) {
@@ -208,8 +209,8 @@ function main(): void {
   }
 
   if (v.json) {
-    const subInvs = applyTop(subInvsAll, v.top);
-    out.write(`${JSON.stringify(toJSON(subInvs, mainCost, subCost), null, 2)}\n`);
+    // JSON is the complete dump (--top only trims the human table); keep counts and totals in sync.
+    out.write(`${JSON.stringify(toJSON(subInvsAll, mainCost, subCost), null, 2)}\n`);
     return;
   }
 
