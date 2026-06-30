@@ -18,25 +18,25 @@ const pct = (part: number, whole: number): string =>
 
 const modelShort = (m: string): string => m.replace(/^claude-/, "").replace(/-\d{8}$/, "");
 
-function truncate(s: string, n: number): string {
+export function truncate(s: string, n: number): string {
   const clean = s.replace(/\s+/g, " ").trim();
   return clean.length > n ? `${clean.slice(0, n - 1)}…` : clean;
 }
 
-const cacheTotal = (i: Invocation): number =>
-  i.tokens.cache5m + i.tokens.cache1h + i.tokens.cacheRead;
+// Cache writes (5m+1h) are the context-priming tax paid per spawn; reads are cheaper context reuse.
+const cachePrime = (i: Invocation): number => i.tokens.cache5m + i.tokens.cache1h;
 const flag = (i: Invocation): string => (i.unpricedModel ? pc.red("?") : "");
 
 /** Ranked table of subagent invocations, costliest first; row 1 highlighted. */
 export function renderTable(invs: Invocation[], grand: number): string {
   const head = WIDE
-    ? ["#", "AGENT", "TASK", "MODEL", "IN", "OUT", "CACHE", "COST", "%"]
+    ? ["#", "AGENT", "TASK", "MODEL", "IN", "OUT", "PRIME", "READ", "COST", "%"]
     : ["#", "AGENT", "TASK", "COST", "%"];
   const table = new Table({
     head: head.map((h) => pc.dim(h)),
     style: { head: [], border: [] },
     colAligns: WIDE
-      ? ["right", "left", "left", "left", "right", "right", "right", "right", "right"]
+      ? ["right", "left", "left", "left", "right", "right", "right", "right", "right", "right"]
       : ["right", "left", "left", "right", "right"],
   });
 
@@ -46,7 +46,8 @@ export function renderTable(invs: Invocation[], grand: number): string {
           modelShort(i.model),
           tokensShort(i.tokens.input),
           tokensShort(i.tokens.output),
-          tokensShort(cacheTotal(i)),
+          tokensShort(cachePrime(i)),
+          tokensShort(i.tokens.cacheRead),
         ]
       : [];
     const cells = [
@@ -63,41 +64,39 @@ export function renderTable(invs: Invocation[], grand: number): string {
   return table.toString();
 }
 
-/** Total Claude Code spend split into main thread vs subagents, plus the costliest subagent. */
+/** Total Claude Code spend split into main thread vs subagents, with the context re-priming tax. */
 export function renderHeadline(
   grand: number,
   mainCost: number,
   subCost: number,
   subCount: number,
-  topSub: Invocation | undefined,
+  primeCost: number,
 ): string {
   const head = `${pc.bold(pc.green(money(grand)))} ${pc.dim("total Claude Code spend")}`;
   const split =
     `  ${pc.dim("main thread")} ${pc.bold(money(mainCost))} ${pc.dim(`(${pct(mainCost, grand)})`)}` +
     `   ${pc.dim("·")}   ${pc.bold(`${subCount} subagent${subCount === 1 ? "" : "s"}`)} ${pc.bold(money(subCost))} ${pc.dim(`(${pct(subCost, grand)})`)}`;
-  if (!topSub) return `${head}\n${split}`;
-  const line = `${pc.yellow("▸")} ${pc.dim("costliest subagent:")} ${pc.bold(topSub.agentType)}${
-    topSub.description ? ` ${pc.dim(`"${truncate(topSub.description, 38)}"`)}` : ""
-  }  ${pc.bold(money(topSub.cost))} ${pc.dim(`(${pct(topSub.cost, subCost)} of subagents)`)}`;
-  return `${head}\n${split}\n${line}`;
+  const lines = [head, split];
+  if (subCost > 0) {
+    lines.push(
+      `${pc.yellow("▸")} ${pc.dim("of which context re-priming (cache writes):")} ${pc.bold(money(primeCost))} ${pc.dim(`(${pct(primeCost, subCost)} of subagent spend)`)}`,
+    );
+  }
+  return lines.join("\n");
 }
 
-/**
- * Group aggregates. split=true (day/week/session) breaks cost into main vs subagent columns,
- * leading with the subagent total since that's the tool's subject; plain (by-type, --expand) shows
- * one cost column and lets the indented label carry the hierarchy.
- */
+/** split=true (day/week/session/project/model) shows main vs subagent columns; false (type/workflow/phase) shows one cost column. */
 export function renderGroups(
   groups: Group[],
   grand: number,
   firstCol: string,
   split: boolean,
 ): string {
-  const head = split
-    ? WIDE
-      ? [firstCol, "SUBAGENTS", "TOKENS", "MAIN", "SUB", "TOTAL", "%"]
-      : [firstCol, "SUB", "TOTAL"]
-    : [firstCol, "COUNT", "TOKENS", "COST", "AVG", "%"];
+  // Branches mirror the row-building below: !split, then split+WIDE, then split+narrow.
+  let head: string[];
+  if (!split) head = [firstCol, "COUNT", "TOKENS", "COST", "AVG", "%"];
+  else if (WIDE) head = [firstCol, "SUBAGENTS", "TOKENS", "MAIN", "SUB", "TOTAL", "%"];
+  else head = [firstCol, "SUB", "TOTAL"];
   const colAligns = head.map((_, i) => (i === 0 ? "left" : "right")) as ("left" | "right")[];
   const table = new Table({
     head: head.map((h) => pc.dim(h)),
