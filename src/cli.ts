@@ -14,6 +14,7 @@ import {
 } from "./aggregate.js";
 import { browse, primeOf } from "./browse.js";
 import {
+  groupsToJSON,
   renderFooter,
   renderGroups,
   renderHeadline,
@@ -91,11 +92,11 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
-function applyTop(invs: Invocation[], top: unknown): Invocation[] {
-  if (typeof top !== "string") return invs;
+function applyTop<T>(rows: T[], top: unknown): T[] {
+  if (typeof top !== "string") return rows;
   const n = Number.parseInt(top, 10);
   if (Number.isNaN(n) || n <= 0) fail(`invalid --top: ${top}`);
-  return invs.slice(0, n);
+  return rows.slice(0, n);
 }
 
 function warnings(ds: Dataset, out: NodeJS.WriteStream): void {
@@ -163,13 +164,8 @@ function main(): void {
 
   if (cmd === "browse" && browse(subInvsAll)) return; // fzf absent → fall through to the table
 
-  if (v.json) {
-    const subInvs = applyTop(subInvsAll, v.top);
-    out.write(`${JSON.stringify(toJSON(subInvs, mainCost, subCost), null, 2)}\n`);
-    return;
-  }
-
-  // Aggregations include the main thread so totals reconcile with ccusage.
+  // Aggregations include the main thread so totals reconcile with ccusage. Handled before --json so
+  // `--by X --json` emits grouped output instead of silently falling back to the flat subagent list.
   const by = v.by as string | undefined;
   if (by) {
     // type/workflow rows are all one kind (no main thread), so show one cost column (split: false);
@@ -190,16 +186,30 @@ function main(): void {
       return void fail(
         `unknown --by dimension: ${by} (use type | workflow | project | model | day)`,
       );
-    const groups = dim.group();
+    const allGroups = dim.group();
+    // Denominator is the dimension's own total: workflow filters out non-workflow spend, so its rows
+    // sum below `grand`. --top trims which rows show, not the total they're a percentage of.
+    const dimTotal = allGroups.reduce((s, g) => s + g.cost, 0);
+    const groups = applyTop(allGroups, v.top);
+    if (v.json) {
+      out.write(`${JSON.stringify(groupsToJSON(by, dimTotal, groups), null, 2)}\n`);
+      return;
+    }
     if (groups.length === 0) {
       out.write(`${pc.dim(`no ${by} data found in range.`)}\n`);
       warnings(ds, out);
       return;
     }
     out.write(
-      `${renderGroups(groups, grand, dim.col, dim.split)}\n${renderFooter("TOTAL", grand)}\n`,
+      `${renderGroups(groups, dimTotal, dim.col, dim.split)}\n${renderFooter("TOTAL", dimTotal)}\n`,
     );
     warnings(ds, out);
+    return;
+  }
+
+  if (v.json) {
+    const subInvs = applyTop(subInvsAll, v.top);
+    out.write(`${JSON.stringify(toJSON(subInvs, mainCost, subCost), null, 2)}\n`);
     return;
   }
 

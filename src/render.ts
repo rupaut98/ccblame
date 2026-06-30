@@ -163,6 +163,22 @@ export function renderFooter(label: string, amount: number): string {
   return `${pc.dim("─".repeat(28))}\n${pc.dim(label)}  ${pc.bold(pc.green(money(amount)))}`;
 }
 
+export function groupsToJSON(by: string, total: number, groups: Group[]) {
+  return {
+    by,
+    total_cost_usd: total,
+    groups: groups.map((g) => ({
+      key: g.key,
+      label: g.label,
+      cost_usd: g.cost,
+      main_cost_usd: g.mainCost,
+      subagent_cost_usd: g.subCost,
+      count: g.count,
+      subagent_count: g.subCount,
+    })),
+  };
+}
+
 export function toJSON(subInvs: Invocation[], mainCost: number, subCost: number) {
   return {
     total_cost_usd: mainCost + subCost,
