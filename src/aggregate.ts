@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { basename } from "node:path";
 import { priceUsage } from "./cost.js";
 import { type Discovery, discover } from "./discover.js";
 import { dedup, extractAgentSpawnIds, parseUsageLines } from "./parse.js";
@@ -29,6 +30,43 @@ function readMeta(path: string): { agentType?: string; description?: string; too
   }
 }
 
+interface WfInfo {
+  workflowId: string;
+  workflowName: string | null;
+  label: string;
+}
+interface Manifest {
+  workflowName?: string;
+  workflowProgress?: { type?: string; agentId?: string; label?: string }[];
+}
+
+/**
+ * Map each workflow agentId → its run name/label from <session>/workflows/wf_*.json.
+ * Privacy: reads only agentId/label/workflowName — never the manifest's prompt/result/summary content.
+ */
+function buildWorkflowMap(manifestPaths: string[]): Map<string, WfInfo> {
+  const map = new Map<string, WfInfo>();
+  for (const path of manifestPaths) {
+    let m: Manifest;
+    try {
+      m = JSON.parse(readFileSync(path, "utf8")) as Manifest;
+    } catch {
+      continue;
+    }
+    const workflowId = basename(path).replace(/\.json$/, "");
+    const workflowName = typeof m.workflowName === "string" ? m.workflowName : null;
+    for (const e of m.workflowProgress ?? []) {
+      if (e?.type !== "workflow_agent" || typeof e.agentId !== "string") continue;
+      map.set(e.agentId, {
+        workflowId,
+        workflowName,
+        label: typeof e.label === "string" ? e.label : "",
+      });
+    }
+  }
+  return map;
+}
+
 export function buildDataset(disc: Discovery = discover()): Dataset {
   const { pairs, mainSessions, cleanupPeriodDays, configDirs } = disc;
 
@@ -39,6 +77,7 @@ export function buildDataset(disc: Discovery = discover()): Dataset {
   for (const p of pairs)
     for (const id of extractAgentSpawnIds(p.jsonlPath)) spawnOwner.set(id, p.agentId);
 
+  const wfByAgent = buildWorkflowMap(disc.manifests);
   const unpricedModels = new Set<string>();
   const invocations: Invocation[] = [];
 
@@ -47,17 +86,20 @@ export function buildDataset(disc: Discovery = discover()): Dataset {
     const s = summarize(dedup(parseUsageLines(p.jsonlPath)), unpricedModels);
     if (!s) continue;
     const toolUseId = typeof meta.toolUseId === "string" ? meta.toolUseId : null;
+    const wf = wfByAgent.get(p.agentId);
     invocations.push({
       kind: "subagent",
       agentId: p.agentId,
       agentType: meta.agentType || s.first.attributionAgent || "‹unknown agent›",
-      description: meta.description ?? "",
+      description: wf?.label || meta.description || "", // manifest label fills the stub meta's blank
       toolUseId,
       parentAgentId: toolUseId ? (spawnOwner.get(toolUseId) ?? null) : null,
       depth: 1, // filled below
       sessionId: p.sessionId,
       project: p.project,
       projectLabel: projectLabel(p.project),
+      workflowId: wf?.workflowId ?? null,
+      workflowName: wf?.workflowName ?? null,
       ...summaryFields(s),
     });
   }
@@ -78,6 +120,8 @@ export function buildDataset(disc: Discovery = discover()): Dataset {
       sessionId: ms.sessionId,
       project: ms.project,
       projectLabel: projectLabel(ms.project),
+      workflowId: null,
+      workflowName: null,
       ...summaryFields(s),
     });
   }

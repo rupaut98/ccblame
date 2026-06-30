@@ -20,6 +20,8 @@ function inv(over: Partial<Invocation>): Invocation {
     tokens: emptyUsage(),
     cost: 1,
     unpricedModel: false,
+    workflowId: null,
+    workflowName: null,
     ...over,
   };
 }

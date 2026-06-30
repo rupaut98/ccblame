@@ -37,6 +37,9 @@ export interface Invocation {
   tokens: Usage;
   cost: number;
   unpricedModel: boolean; // true => no price row found, cost is a floor not a total
+  // Workflow-spawned subagents only; recovered from the run manifest.
+  workflowId: string | null; // wf_<id>, the run this agent belongs to
+  workflowName: string | null;
 }
 
 export function emptyUsage(): Usage {

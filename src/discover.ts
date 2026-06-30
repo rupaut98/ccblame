@@ -20,26 +20,22 @@ export interface Discovery {
   configDirs: string[];
   pairs: Pair[];
   mainSessions: MainSession[];
+  manifests: string[]; // <session>/workflows/wf_*.json run manifests (sibling of subagents/)
   cleanupPeriodDays: number | null;
 }
 
 const expandTilde = (p: string): string => (p.startsWith("~") ? join(homedir(), p.slice(1)) : p);
 
-const isDir = (p: string): boolean => {
+const statOr = (p: string): ReturnType<typeof statSync> | null => {
   try {
-    return statSync(p).isDirectory();
+    return statSync(p);
   } catch {
-    return false;
+    return null;
   }
 };
 
-const isFile = (p: string): boolean => {
-  try {
-    return statSync(p).isFile();
-  } catch {
-    return false;
-  }
-};
+const isDir = (p: string): boolean => statOr(p)?.isDirectory() ?? false;
+const isFile = (p: string): boolean => statOr(p)?.isFile() ?? false;
 
 /** Mirror ccusage: CLAUDE_CONFIG_DIR overrides; else scan ~/.config/claude and ~/.claude. */
 export function resolveConfigDirs(): string[] {
@@ -78,6 +74,7 @@ export function discover(): Discovery {
   const configDirs = resolveConfigDirs();
   const pairs: Pair[] = [];
   const mainSessions: MainSession[] = [];
+  const manifests: string[] = [];
 
   for (const cfg of configDirs) {
     const projectsDir = join(cfg, "projects");
@@ -96,11 +93,25 @@ export function discover(): Discovery {
         // Recurse: plain subagents sit at the top level, but workflow-spawned ones nest under
         // subagents/workflows/wf_<id>/. Both are real subagent invocations.
         collectPairs(subagentsDir, project, entry, pairs);
+        // Run manifests sit alongside, in <session>/workflows/wf_*.json — they carry the per-agent
+        // label/phase that the workflow subagent .meta.json stubs lack.
+        const wfDir = join(entryPath, "workflows");
+        if (isDir(wfDir)) {
+          for (const f of readdirSync(wfDir)) {
+            if (f.startsWith("wf_") && f.endsWith(".json")) manifests.push(join(wfDir, f));
+          }
+        }
       }
     }
   }
 
-  return { configDirs, pairs, mainSessions, cleanupPeriodDays: readCleanupPeriodDays(configDirs) };
+  return {
+    configDirs,
+    pairs,
+    mainSessions,
+    manifests,
+    cleanupPeriodDays: readCleanupPeriodDays(configDirs),
+  };
 }
 
 function collectPairs(dir: string, project: string, sessionId: string, pairs: Pair[]): void {
