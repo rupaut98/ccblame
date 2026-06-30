@@ -234,30 +234,25 @@ function groupBy(invs: Invocation[], keyFn: KeyFn): Group[] {
 
 const dayKey = (ts: number): string => new Date(ts).toISOString().slice(0, 10);
 
-/** ISO-ish week label anchored to the Monday of the week (UTC). */
-function weekKey(ts: number): string {
-  const d = new Date(ts);
-  const day = (d.getUTCDay() + 6) % 7; // 0 = Monday
-  const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day));
-  return monday.toISOString().slice(0, 10);
-}
-
 const dayKeyFn: KeyFn = (i) => [dayKey(i.startedAt), dayKey(i.startedAt)];
-const weekKeyFn: KeyFn = (i) => {
-  const k = weekKey(i.startedAt);
-  return [k, `week of ${k}`];
-};
-const sessionKeyFn: KeyFn = (i) => [i.sessionId, `${i.sessionId.slice(0, 8)} · ${i.projectLabel}`];
 const typeKeyFn: KeyFn = (i) => [i.agentType, i.agentType];
 const projectKeyFn: KeyFn = (i) => [i.project, i.projectLabel];
 const modelKeyFn: KeyFn = (i) => [i.model, i.model];
+const workflowKeyFn: KeyFn = (i) => [
+  i.workflowId ?? "",
+  i.workflowName ? `${i.workflowName} · ${(i.workflowId ?? "").slice(0, 9)}` : (i.workflowId ?? ""),
+];
 
 export const groupByType = (invs: Invocation[]): Group[] => groupBy(invs, typeKeyFn);
 export const groupByDay = (invs: Invocation[]): Group[] => groupBy(invs, dayKeyFn);
-export const groupByWeek = (invs: Invocation[]): Group[] => groupBy(invs, weekKeyFn);
-export const groupBySession = (invs: Invocation[]): Group[] => groupBy(invs, sessionKeyFn);
 export const groupByProject = (invs: Invocation[]): Group[] => groupBy(invs, projectKeyFn);
 export const groupByModel = (invs: Invocation[]): Group[] => groupBy(invs, modelKeyFn);
+// Workflow rows only make sense for manifest-backed workflow agents — filter to those.
+export const groupByWorkflow = (invs: Invocation[]): Group[] =>
+  groupBy(
+    invs.filter((i) => i.workflowId),
+    workflowKeyFn,
+  );
 
 export interface TreeNode {
   inv: Invocation;
