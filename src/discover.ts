@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 export interface Pair {
   metaPath: string;
@@ -50,15 +50,17 @@ export const readJsonOr = <T>(path: string): T | null => {
 export function resolveConfigDirs(): string[] {
   const env = process.env.CLAUDE_CONFIG_DIR;
   if (env) {
+    // resolve() canonicalizes (absolute, no trailing slash) so the Set collapses "/x/" and "/x".
     const dirs = env
       .split(",")
-      .map((s) => expandTilde(s.trim()))
+      .map((s) => s.trim())
       .filter(Boolean)
+      .map((s) => resolve(expandTilde(s)))
       .filter((d) => existsSync(join(d, "projects")));
     if (dirs.length === 0) {
       throw new Error("CLAUDE_CONFIG_DIR is set but no path contains a projects/ directory.");
     }
-    return dirs;
+    return [...new Set(dirs)];
   }
   const xdg = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
   const candidates = [join(xdg, "claude"), join(homedir(), ".claude")];
