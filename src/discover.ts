@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -36,6 +36,24 @@ const statOr = (p: string): ReturnType<typeof statSync> | null => {
 
 const isDir = (p: string): boolean => statOr(p)?.isDirectory() ?? false;
 const isFile = (p: string): boolean => statOr(p)?.isFile() ?? false;
+
+// lstat (no symlink follow) so a symlink cycle under subagents/ can't drive infinite recursion.
+const isRealDir = (p: string): boolean => {
+  try {
+    return lstatSync(p).isDirectory();
+  } catch {
+    return false;
+  }
+};
+
+// readdir on an unreadable dir (EACCES) shouldn't crash the whole scan — skip it.
+const readdirOr = (p: string): string[] => {
+  try {
+    return readdirSync(p);
+  } catch {
+    return [];
+  }
+};
 
 /** Read+parse a JSON file; null on missing/unreadable/malformed. */
 export const readJsonOr = <T>(path: string): T | null => {
@@ -84,10 +102,10 @@ export function discover(): Discovery {
   for (const cfg of configDirs) {
     const projectsDir = join(cfg, "projects");
     if (!isDir(projectsDir)) continue;
-    for (const project of readdirSync(projectsDir)) {
+    for (const project of readdirOr(projectsDir)) {
       const projDir = join(projectsDir, project);
       if (!isDir(projDir)) continue;
-      for (const entry of readdirSync(projDir)) {
+      for (const entry of readdirOr(projDir)) {
         const entryPath = join(projDir, entry);
         if (entry.endsWith(".jsonl") && isFile(entryPath)) {
           mainSessions.push({ path: entryPath, project, sessionId: entry.replace(/\.jsonl$/, "") });
@@ -102,7 +120,7 @@ export function discover(): Discovery {
         // label/phase that the workflow subagent .meta.json stubs lack.
         const wfDir = join(entryPath, "workflows");
         if (isDir(wfDir)) {
-          for (const f of readdirSync(wfDir)) {
+          for (const f of readdirOr(wfDir)) {
             if (f.startsWith("wf_") && f.endsWith(".json")) manifests.push(join(wfDir, f));
           }
         }
@@ -120,9 +138,9 @@ export function discover(): Discovery {
 }
 
 function collectPairs(dir: string, project: string, sessionId: string, pairs: Pair[]): void {
-  for (const f of readdirSync(dir)) {
+  for (const f of readdirOr(dir)) {
     const p = join(dir, f);
-    if (isDir(p)) {
+    if (isRealDir(p)) {
       collectPairs(p, project, sessionId, pairs);
       continue;
     }
