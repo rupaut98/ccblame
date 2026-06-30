@@ -12,8 +12,7 @@ import {
   groupByType,
   groupByWorkflow,
 } from "./aggregate.js";
-import { browse } from "./browse.js";
-import { priceUsage } from "./cost.js";
+import { browse, primeOf } from "./browse.js";
 import {
   renderFooter,
   renderGroups,
@@ -204,17 +203,8 @@ function main(): void {
     return;
   }
 
-  // Priming tax: reprice just the cache-write tokens — the slice of cost spent re-loading context.
-  const primeCost = subInvsAll.reduce(
-    (s, i) =>
-      s +
-      priceUsage(
-        { input: 0, output: 0, cache5m: i.tokens.cache5m, cache1h: i.tokens.cache1h, cacheRead: 0 },
-        i.model,
-        false,
-      ).cost,
-    0,
-  );
+  // Priming tax: the slice of subagent cost spent re-loading context (cache-write tokens).
+  const primeCost = subInvsAll.reduce((s, i) => s + primeOf(i), 0);
   const headline = renderHeadline(grand, mainCost, subCost, subInvsAll.length, primeCost);
 
   if (v.tree) {

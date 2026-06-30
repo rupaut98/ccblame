@@ -13,10 +13,10 @@ export function tokensShort(n: number): string {
   return String(n);
 }
 
-const pct = (part: number, whole: number): string =>
+export const pct = (part: number, whole: number): string =>
   whole > 0 ? `${Math.round((part / whole) * 100)}%` : "0%";
 
-const modelShort = (m: string): string => m.replace(/^claude-/, "").replace(/-\d{8}$/, "");
+export const modelShort = (m: string): string => m.replace(/^claude-/, "").replace(/-\d{8}$/, "");
 
 export function truncate(s: string, n: number): string {
   const clean = s.replace(/\s+/g, " ").trim();

@@ -3,17 +3,21 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import pc from "picocolors";
-import { groupByType } from "./aggregate.js";
+import { dayKey as day, groupByType } from "./aggregate.js";
 import { priceUsage } from "./cost.js";
-import { money, renderFooter, renderGroups, renderTable, truncate } from "./render.js";
+import {
+  modelShort,
+  money,
+  pct,
+  renderFooter,
+  renderGroups,
+  renderTable,
+  truncate,
+} from "./render.js";
 import type { Invocation } from "./types.js";
 
-const day = (ts: number): string => new Date(ts).toISOString().slice(0, 10);
-const pct = (part: number, whole: number): string =>
-  whole > 0 ? `${Math.round((part / whole) * 100)}%` : "0%";
-
 // The context re-priming tax for one invocation: just the cache-write tokens, priced.
-const primeOf = (i: Invocation): number =>
+export const primeOf = (i: Invocation): number =>
   priceUsage(
     { input: 0, output: 0, cache5m: i.tokens.cache5m, cache1h: i.tokens.cache1h, cacheRead: 0 },
     i.model,
@@ -101,7 +105,7 @@ const DIMS: Dim[] = [
   { col: "projects", keyFn: (i) => [i.project, i.projectLabel] },
   { col: "days", keyFn: (i) => [day(i.startedAt), day(i.startedAt)] },
   { col: "agent types", keyFn: (i) => [i.agentType, i.agentType] },
-  { col: "models", keyFn: (i) => [i.model, i.model.replace(/^claude-/, "")] },
+  { col: "models", keyFn: (i) => [i.model, modelShort(i.model)] },
   {
     col: "workflows",
     keyFn: (i) => [i.workflowId ?? "", i.workflowName ?? i.workflowId ?? ""],

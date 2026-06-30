@@ -37,6 +37,15 @@ const statOr = (p: string): ReturnType<typeof statSync> | null => {
 const isDir = (p: string): boolean => statOr(p)?.isDirectory() ?? false;
 const isFile = (p: string): boolean => statOr(p)?.isFile() ?? false;
 
+/** Read+parse a JSON file; null on missing/unreadable/malformed. */
+export const readJsonOr = <T>(path: string): T | null => {
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as T;
+  } catch {
+    return null;
+  }
+};
+
 /** Mirror ccusage: CLAUDE_CONFIG_DIR overrides; else scan ~/.config/claude and ~/.claude. */
 export function resolveConfigDirs(): string[] {
   const env = process.env.CLAUDE_CONFIG_DIR;
@@ -58,14 +67,8 @@ export function resolveConfigDirs(): string[] {
 
 export function readCleanupPeriodDays(configDirs: string[]): number | null {
   for (const d of configDirs) {
-    const settings = join(d, "settings.json");
-    if (!existsSync(settings)) continue;
-    try {
-      const json = JSON.parse(readFileSync(settings, "utf8"));
-      if (typeof json.cleanupPeriodDays === "number") return json.cleanupPeriodDays;
-    } catch {
-      // ignore malformed settings
-    }
+    const json = readJsonOr<{ cleanupPeriodDays?: unknown }>(join(d, "settings.json"));
+    if (json && typeof json.cleanupPeriodDays === "number") return json.cleanupPeriodDays;
   }
   return null;
 }

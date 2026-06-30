@@ -1,7 +1,6 @@
-import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { priceUsage } from "./cost.js";
-import { type Discovery, discover } from "./discover.js";
+import { type Discovery, discover, readJsonOr } from "./discover.js";
 import { dedup, extractAgentSpawnIds, parseUsageLines } from "./parse.js";
 import {
   addUsage,
@@ -22,14 +21,6 @@ export interface Dataset {
 const projectLabel = (project: string): string =>
   project.replace(/^-+/, "").split("-").slice(-2).join("-") || project;
 
-function readMeta(path: string): { agentType?: string; description?: string; toolUseId?: string } {
-  try {
-    return JSON.parse(readFileSync(path, "utf8"));
-  } catch {
-    return {};
-  }
-}
-
 interface WfInfo {
   workflowId: string;
   workflowName: string | null;
@@ -47,12 +38,8 @@ interface Manifest {
 function buildWorkflowMap(manifestPaths: string[]): Map<string, WfInfo> {
   const map = new Map<string, WfInfo>();
   for (const path of manifestPaths) {
-    let m: Manifest;
-    try {
-      m = JSON.parse(readFileSync(path, "utf8")) as Manifest;
-    } catch {
-      continue;
-    }
+    const m = readJsonOr<Manifest>(path);
+    if (!m) continue;
     const workflowId = basename(path).replace(/\.json$/, "");
     const workflowName = typeof m.workflowName === "string" ? m.workflowName : null;
     for (const e of m.workflowProgress ?? []) {
@@ -82,7 +69,9 @@ export function buildDataset(disc: Discovery = discover()): Dataset {
   const invocations: Invocation[] = [];
 
   for (const p of pairs) {
-    const meta = readMeta(p.metaPath);
+    const meta =
+      readJsonOr<{ agentType?: string; description?: string; toolUseId?: string }>(p.metaPath) ??
+      {};
     const s = summarize(dedup(parseUsageLines(p.jsonlPath)), unpricedModels);
     if (!s) continue;
     const toolUseId = typeof meta.toolUseId === "string" ? meta.toolUseId : null;
@@ -232,7 +221,7 @@ function groupBy(invs: Invocation[], keyFn: KeyFn): Group[] {
   return [...map.values()].sort((a, b) => b.cost - a.cost);
 }
 
-const dayKey = (ts: number): string => new Date(ts).toISOString().slice(0, 10);
+export const dayKey = (ts: number): string => new Date(ts).toISOString().slice(0, 10);
 
 const dayKeyFn: KeyFn = (i) => [dayKey(i.startedAt), dayKey(i.startedAt)];
 const typeKeyFn: KeyFn = (i) => [i.agentType, i.agentType];
