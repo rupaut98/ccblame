@@ -5,14 +5,15 @@ import {
   buildDataset,
   buildTree,
   type Dataset,
+  type Group,
   groupByDay,
   groupByModel,
   groupByProject,
-  groupBySession,
   groupByType,
-  groupByWeek,
+  groupByWorkflow,
 } from "./aggregate.js";
 import { browse } from "./browse.js";
+import { priceUsage } from "./cost.js";
 import {
   renderFooter,
   renderGroups,
@@ -33,14 +34,13 @@ Usage
 
 Commands
   (default)            ranked table of subagent invocations, costliest first
-  daily                aggregate cost by day
-  weekly               aggregate cost by week
-  browse               interactive day→session→agent drill-down (needs fzf)
+  browse               interactive subagent drill-down (needs fzf)
 
 Options
-  --by <dim>           aggregate by: type | day | week | session | project | model
+  --by <dim>           aggregate by: type | workflow | project | model | day
   --tree               show the spawn hierarchy with per-node cost
   --session <id>       scope to one session (prefix match)
+  --workflow <id>      scope to one workflow run (prefix match)
   --project <name>     scope to a project (substring match)
   --since <date>       only invocations on/after (YYYY-MM-DD or RFC3339)
   --until <date>       only invocations on/before
@@ -64,6 +64,10 @@ function applyFilters(invs: Invocation[], v: Record<string, unknown>): Invocatio
     const s = v.session;
     out = out.filter((i) => i.sessionId.startsWith(s));
   }
+  if (typeof v.workflow === "string") {
+    const w = v.workflow;
+    out = out.filter((i) => i.workflowId?.startsWith(w));
+  }
   if (typeof v.project === "string") {
     const p = v.project.toLowerCase();
     out = out.filter(
@@ -73,12 +77,12 @@ function applyFilters(invs: Invocation[], v: Record<string, unknown>): Invocatio
   if (typeof v.since === "string") {
     const t = parseDate(v.since, false);
     if (t === null) fail(`invalid --since date: ${v.since}`);
-    out = out.filter((i) => i.startedAt >= (t as number));
+    out = out.filter((i) => i.startedAt >= t);
   }
   if (typeof v.until === "string") {
     const t = parseDate(v.until, true);
     if (t === null) fail(`invalid --until date: ${v.until}`);
-    out = out.filter((i) => i.startedAt <= (t as number));
+    out = out.filter((i) => i.startedAt <= t);
   }
   return out;
 }
@@ -120,6 +124,7 @@ function main(): void {
         by: { type: "string" },
         tree: { type: "boolean" },
         session: { type: "string" },
+        workflow: { type: "string" },
         project: { type: "string" },
         since: { type: "string" },
         until: { type: "string" },
@@ -166,31 +171,51 @@ function main(): void {
   }
 
   // Aggregations include the main thread so totals reconcile with ccusage.
-  const by = cmd === "daily" ? "day" : cmd === "weekly" ? "week" : (v.by as string | undefined);
+  const by = v.by as string | undefined;
   if (by) {
-    const col = by === "type" ? "AGENT TYPE" : by === "session" ? "SESSION" : by.toUpperCase();
-    let groups: ReturnType<typeof groupByType>;
-    if (by === "type") groups = groupByType(all);
-    else if (by === "day") groups = groupByDay(all).sort((a, b) => a.key.localeCompare(b.key));
-    else if (by === "week") groups = groupByWeek(all).sort((a, b) => a.key.localeCompare(b.key));
-    else if (by === "session") groups = groupBySession(all);
-    else if (by === "project") groups = groupByProject(all);
-    else if (by === "model") groups = groupByModel(all);
-    else
+    // type/workflow rows are all one kind (no main thread), so show one cost column (split: false);
+    // day/project/model split into main vs subagent.
+    const dims: Record<string, { group: () => Group[]; col: string; split: boolean }> = {
+      type: { group: () => groupByType(all), col: "AGENT TYPE", split: false },
+      workflow: { group: () => groupByWorkflow(all), col: "WORKFLOW", split: false },
+      project: { group: () => groupByProject(all), col: "PROJECT", split: true },
+      model: { group: () => groupByModel(all), col: "MODEL", split: true },
+      day: {
+        group: () => groupByDay(all).sort((a, b) => a.key.localeCompare(b.key)),
+        col: "DAY",
+        split: true,
+      },
+    };
+    const dim = dims[by];
+    if (!dim)
       return void fail(
-        `unknown --by dimension: ${by} (use type | day | week | session | project | model)`,
+        `unknown --by dimension: ${by} (use type | workflow | project | model | day)`,
       );
-    // by-type rows are homogeneous (a type is all-main or all-sub), so the main/sub split only
-    // makes sense for day/week/session.
+    const groups = dim.group();
+    if (groups.length === 0) {
+      out.write(`${pc.dim(`no ${by} data found in range.`)}\n`);
+      warnings(ds, out);
+      return;
+    }
     out.write(
-      `${renderGroups(groups, grand, col, by !== "type")}\n${renderFooter("TOTAL", grand)}\n`,
+      `${renderGroups(groups, grand, dim.col, dim.split)}\n${renderFooter("TOTAL", grand)}\n`,
     );
     warnings(ds, out);
     return;
   }
 
-  const topSub = subInvsAll[0];
-  const headline = renderHeadline(grand, mainCost, subCost, subInvsAll.length, topSub);
+  // Priming tax: reprice just the cache-write tokens — the slice of cost spent re-loading context.
+  const primeCost = subInvsAll.reduce(
+    (s, i) =>
+      s +
+      priceUsage(
+        { input: 0, output: 0, cache5m: i.tokens.cache5m, cache1h: i.tokens.cache1h, cacheRead: 0 },
+        i.model,
+        false,
+      ).cost,
+    0,
+  );
+  const headline = renderHeadline(grand, mainCost, subCost, subInvsAll.length, primeCost);
 
   if (v.tree) {
     out.write(`${headline}\n\n${renderTree(buildTree(subInvsAll), grand)}\n`);
@@ -209,7 +234,7 @@ function main(): void {
   if (hidden > 0) {
     out.write(
       pc.dim(
-        `showing top ${subInvs.length} of ${subInvsAll.length} subagents — --top N · daily · --expand · browse\n`,
+        `showing top ${subInvs.length} of ${subInvsAll.length} subagents — --top N · --by day · browse\n`,
       ),
     );
   }
