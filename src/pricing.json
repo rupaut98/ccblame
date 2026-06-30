@@ -1,0 +1,41 @@
+{
+  "_meta": {
+    "source": "LiteLLM model_prices_and_context_window.json + Anthropic pricing",
+    "verified": "2026-06-28",
+    "unit": "USD per million tokens",
+    "note": "Keyed by model family; resolver matches opus/sonnet/haiku in the model id. *Above = >200k-context tier."
+  },
+  "fable": {
+    "input": 10,
+    "output": 50,
+    "cache5m": 12.5,
+    "cache1h": 20,
+    "cacheRead": 1.0
+  },
+  "opus": {
+    "input": 5,
+    "output": 25,
+    "cache5m": 6.25,
+    "cache1h": 10,
+    "cacheRead": 0.5
+  },
+  "sonnet": {
+    "input": 3,
+    "output": 15,
+    "cache5m": 3.75,
+    "cache1h": 6,
+    "cacheRead": 0.3,
+    "inputAbove": 6,
+    "outputAbove": 22.5,
+    "cache5mAbove": 7.5,
+    "cache1hAbove": 12,
+    "cacheReadAbove": 0.6
+  },
+  "haiku": {
+    "input": 1,
+    "output": 5,
+    "cache5m": 1.25,
+    "cache1h": 2,
+    "cacheRead": 0.1
+  }
+}
