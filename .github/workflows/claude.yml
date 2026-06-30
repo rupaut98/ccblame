@@ -32,6 +32,7 @@ jobs:
       contents: read # read/answer assistant; to push commits add 'write' + Edit,Write + bun setup
       pull-requests: write
       issues: write
+      id-token: write # the action mints its GitHub token via OIDC — required
     steps:
       - uses: actions/checkout@v4
 
