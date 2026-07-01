@@ -1,0 +1,32 @@
+name: Release
+
+# Publishes to npm with provenance on a version tag (e.g. `git tag v0.1.1 && git push --follow-tags`).
+# First publish must be done manually (`npm publish`) so the package exists before you can
+# register this workflow as a Trusted Publisher on npmjs.com. After that, tags publish automatically.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # create the GitHub Release
+  id-token: write # mint the OIDC token npm verifies — provenance, no long-lived token
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+      - run: npm install -g npm@latest # trusted publishing needs npm >= 11.5.1
+      - run: bun install --frozen-lockfile
+      - run: bun test
+      - run: bun run build
+      - run: npm publish
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
