@@ -43,7 +43,7 @@ Options
   --session <id>       scope to one session (prefix match)
   --workflow <id>      scope to one workflow run (prefix match)
   --project <name>     scope to a project (substring match)
-  --since <date>       only invocations on/after (YYYY-MM-DD or RFC3339)
+  --since <date>       only invocations on/after (YYYY-MM-DD or RFC3339; day boundaries are UTC)
   --until <date>       only invocations on/before
   --top <n>            show only the N costliest
   --json               machine-readable output

@@ -104,12 +104,17 @@ ccblame --by project             # group by project
 ccblame --by workflow --top 10   # 10 costliest workflow runs
 ccblame --project payer-policies # scope to one project (substring match)
 ccblame --workflow wf_abc        # scope to one workflow run (prefix match)
-ccblame --since 2026-06-01       # date range (YYYY-MM-DD or RFC3339)
+ccblame --since 2026-06-01       # on/after a date (YYYY-MM-DD or RFC3339)
+ccblame --until 2026-06-30       # on/before a date (pairs with --since)
 ccblame --json                   # machine-readable, full dataset
 ccblame browse                   # interactive drill-down (needs fzf)
 ```
 
+Date boundaries for `--since`/`--until` and `--by day` are **UTC**.
+
 `--top N` trims the *displayed* table only — `--json` always emits the full dataset, and every total stays full-population so the numbers reconcile with your real spend.
+
+The dollar figures are an **estimate reconciled from your local logs** (main-thread + subagent spend always sums to the grand total), not a copy of your billed Anthropic invoice. Unpriced or unknown models are flagged loudly and counted as `$0`, so a total is always a floor — never a silent undercount.
 
 ## How the re-priming tax is computed
 
