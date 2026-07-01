@@ -18,3 +18,7 @@ jobs:
       - run: bun run typecheck
       - run: bun test
       - run: bun run build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - run: node dist/cli.mjs --help
