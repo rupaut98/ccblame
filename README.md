@@ -8,6 +8,8 @@
 [![License: MIT](https://img.shields.io/npm/l/ccblame.svg)](./LICENSE)
 [![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](https://github.com/rupaut98/ccblame/blob/main/package.json)
 
+![ccblame demo](https://raw.githubusercontent.com/rupaut98/ccblame/main/demo/demo.gif)
+
 `ccblame` reads your local `~/.claude` transcripts and tells you *which subagent, which project, and which workflow* actually spent the money — not just a daily total. It runs entirely on your machine and never sends data anywhere.
 
 ```
@@ -80,6 +82,8 @@ ccblame --by day         # spend over time
 ```
 
 **Interactive drill-down** (`ccblame browse`) if you have [`fzf`](https://github.com/junegunn/fzf) — pivot through days, sessions, and agents live. No fzf? It falls back to the plain table.
+
+![ccblame browse — interactive drill-down](https://raw.githubusercontent.com/rupaut98/ccblame/main/demo/browse.gif)
 
 ## Install
 
