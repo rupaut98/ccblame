@@ -13,6 +13,7 @@ import {
   groupByWorkflow,
 } from "./aggregate.js";
 import { browse, primeOf } from "./browse.js";
+import { searchDirs } from "./discover.js";
 import {
   groupsToJSON,
   renderFooter,
@@ -143,7 +144,12 @@ function main(): void {
   if (v.help) return void console.log(HELP);
   if (v.version) return void console.log(VERSION);
 
-  const ds = buildDataset();
+  let ds: Dataset;
+  try {
+    ds = buildDataset();
+  } catch (e) {
+    fail((e as Error).message); // e.g. a misconfigured CLAUDE_CONFIG_DIR — a clean error, not a stack trace
+  }
   const all = applyFilters(ds.invocations, v);
   const subInvsAll = all.filter((i) => i.kind === "subagent").sort((a, b) => b.cost - a.cost);
   const mainCost = all.reduce((s, i) => (i.kind === "main" ? s + i.cost : s), 0);
@@ -153,8 +159,10 @@ function main(): void {
   const out = process.stdout;
   if (all.length === 0) {
     if (v.json) return void out.write(`${JSON.stringify(toJSON([], 0, 0), null, 2)}\n`);
+    // configDirs is empty for a brand-new user (no ~/.claude yet) — show where we looked anyway.
+    const looked = ds.configDirs.length ? ds.configDirs : searchDirs();
     out.write(
-      `${pc.yellow("No Claude Code usage found.")}\nLooked in: ${ds.configDirs
+      `${pc.yellow("No Claude Code usage found.")}\nLooked in: ${looked
         .map((d) => `${d}/projects`)
         .join(", ")}\n`,
     );
