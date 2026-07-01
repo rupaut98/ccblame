@@ -191,7 +191,7 @@ function showDetail(text: string): boolean {
 export function browse(subs: Invocation[]): boolean {
   if (subs.length === 0) {
     process.stdout.write(
-      "No subagent spend in this data — run `cc-agentcost` for the main-thread breakdown.\n",
+      "No subagent spend in this data — run `ccblame` for the main-thread breakdown.\n",
     );
     return true;
   }
@@ -199,7 +199,7 @@ export function browse(subs: Invocation[]): boolean {
   const globalPrime = subs.reduce((s, i) => s + primeOf(i), 0);
   const banner = `${pc.bold(pc.green(money(globalSub)))} ${pc.dim("subagent spend")} · ${pc.yellow(`${pct(globalPrime, globalSub)} re-priming tax`)}`;
 
-  const dir = mkdtempSync(join(tmpdir(), "cc-agentcost-"));
+  const dir = mkdtempSync(join(tmpdir(), "ccblame-"));
   let dimIndex = 0;
   let sort: SortMode = "cost";
   const header = (hints: string): string =>
@@ -219,7 +219,7 @@ export function browse(subs: Invocation[]): boolean {
         rows: rows.map((g) => ({ key: g.key, display: sessDisplay(g, max) })),
         dir,
         prefix: "sess-",
-        prompt: `agentcost ▸ ${truncate(group.label, 18)} ▸ `,
+        prompt: `ccblame ▸ ${truncate(group.label, 18)} ▸ `,
         header: header("enter: full table · esc: back · ^s: sort · ^y: copy id · ^o: preview"),
         pivotable: false,
       });
@@ -247,7 +247,7 @@ export function browse(subs: Invocation[]): boolean {
         rows: groups.map((g) => ({ key: g.key, display: grpDisplay(g, max) })),
         dir,
         prefix: "grp-",
-        prompt: `agentcost ▸ ${dim.col} ▸ `,
+        prompt: `ccblame ▸ ${dim.col} ▸ `,
         header: header("enter: drill · esc: quit · ^t: pivot · ^s: sort · ^y: copy · ^o: preview"),
         pivotable: true,
       });

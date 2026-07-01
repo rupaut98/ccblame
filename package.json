@@ -1,10 +1,14 @@
 {
-  "name": "cc-agentcost",
-  "version": "0.0.0",
-  "description": "Per-subagent cost attribution for Claude Code — which subagent burned the budget?",
+  "name": "ccblame",
+  "version": "0.1.0",
+  "description": "git blame for your Claude Code spend — which subagent burned the budget?",
   "type": "module",
   "bin": {
-    "cc-agentcost": "dist/cli.mjs"
+    "ccblame": "dist/cli.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "files": [
     "dist"
@@ -35,10 +39,10 @@
   "author": "rupaut98",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rupaut98/cc-agentcost.git"
+    "url": "git+https://github.com/rupaut98/ccblame.git"
   },
-  "homepage": "https://github.com/rupaut98/cc-agentcost#readme",
-  "bugs": "https://github.com/rupaut98/cc-agentcost/issues",
+  "homepage": "https://github.com/rupaut98/ccblame#readme",
+  "bugs": "https://github.com/rupaut98/ccblame/issues",
   "dependencies": {},
   "devDependencies": {
     "@biomejs/biome": "^2.4.0",

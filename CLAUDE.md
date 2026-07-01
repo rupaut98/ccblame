@@ -1,6 +1,6 @@
-# cc-agentcost
+# ccblame
 
-CLI that parses local `~/.claude` transcripts to attribute Claude Code cost per subagent, then ranks spend by subagent / workflow / project / model / day. Zero runtime deps; reads transcripts locally, never reads prompt content, never makes network calls.
+CLI ("git blame for your Claude Code spend") that parses local `~/.claude` transcripts to attribute Claude Code cost per subagent, then ranks spend by subagent / workflow / project / model / day. Zero runtime deps; reads transcripts locally, never reads prompt content, never makes network calls.
 
 ## Workflow
 

@@ -27,10 +27,10 @@ import type { Invocation } from "./types.js";
 declare const __VERSION__: string;
 const VERSION = typeof __VERSION__ !== "undefined" ? __VERSION__ : "dev";
 
-const HELP = `cc-agentcost — per-subagent cost attribution for Claude Code
+const HELP = `ccblame — git blame for your Claude Code spend; which subagent burned the budget?
 
 Usage
-  cc-agentcost [command] [options]
+  ccblame [command] [options]
 
 Commands
   (default)            ranked table of subagent invocations, costliest first

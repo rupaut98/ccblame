@@ -1,4 +1,4 @@
-# cc-agentcost — PR Review Rules
+# ccblame — PR Review Rules
 
 Reviewing a **privacy-first, zero-runtime-dependency CLI** that attributes Claude Code cost
 per subagent by parsing the user's **local** `~/.claude` transcripts. The whole pitch is "reads
