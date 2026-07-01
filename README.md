@@ -2,6 +2,12 @@
 
 **git blame for your Claude Code spend — which subagent burned the budget?**
 
+[![npm version](https://img.shields.io/npm/v/ccblame.svg)](https://www.npmjs.com/package/ccblame)
+[![npm downloads](https://img.shields.io/npm/dm/ccblame.svg)](https://www.npmjs.com/package/ccblame)
+[![CI](https://github.com/rupaut98/ccblame/actions/workflows/ci.yml/badge.svg)](https://github.com/rupaut98/ccblame/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/npm/l/ccblame.svg)](./LICENSE)
+[![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](https://github.com/rupaut98/ccblame/blob/main/package.json)
+
 `ccblame` reads your local `~/.claude` transcripts and tells you *which subagent, which project, and which workflow* actually spent the money — not just a daily total. It runs entirely on your machine and never sends data anywhere.
 
 ```
