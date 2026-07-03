@@ -1,0 +1,33 @@
+name: Refresh pricing
+
+on:
+  schedule:
+    - cron: "30 6 * * 1" # Mondays 06:30 UTC (:30 — GitHub delays on-the-hour cron)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun scripts/gen-pricing.ts # anchor-validates; exits non-zero if rates look wrong
+      # Needs repo setting: Settings → Actions → General → "Allow GitHub Actions to create and
+      # approve pull requests" (the permissions block above is necessary but not sufficient).
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore: refresh model pricing from LiteLLM"
+          title: "chore: refresh model pricing from LiteLLM"
+          body: |
+            Automated snapshot refresh via `scripts/gen-pricing.ts`.
+            Anchor smoke-test passed (unit-flip / gross-error guard) — review the rate diff before merging.
+          branch: automated/pricing-refresh
+          delete-branch: true
+          labels: pricing
