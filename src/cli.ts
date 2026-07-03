@@ -16,6 +16,7 @@ import { browse, primeOf } from "./browse.js";
 import { searchDirs } from "./discover.js";
 import {
   groupsToJSON,
+  maybeStar,
   renderFooter,
   renderGroups,
   renderHeadline,
@@ -50,7 +51,9 @@ Options
   -h, --help           this help
   -v, --version        print version
 
-Reads ~/.claude (or $CLAUDE_CONFIG_DIR) locally. Never sends data anywhere.`;
+Reads ~/.claude (or $CLAUDE_CONFIG_DIR) locally. Never sends data anywhere.
+
+⭐ Star it if it found where your budget went: https://github.com/rupaut98/ccblame`;
 
 function parseDate(s: string, endOfDay: boolean): number | null {
   const t = Date.parse(s);
@@ -249,6 +252,7 @@ function main(): void {
     );
   }
   warnings(ds, out);
+  maybeStar(out);
 }
 
 /** Fit the table to the terminal on a TTY; show everything when piped (| less, > file). */
