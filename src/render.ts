@@ -1,9 +1,32 @@
+import { statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import Table from "cli-table3";
 import pc from "picocolors";
 import type { Group, TreeNode } from "./aggregate.js";
 import { type Invocation, totalTokens } from "./types.js";
 
 const WIDE = (process.stdout.columns ?? 100) >= 100;
+
+/**
+ * Print a star line after a real ranking. TTY-only (skips piped/JSON output),
+ * throttled to once per 3 days via an mtime marker in tmpdir; fails closed on FS errors.
+ */
+export function maybeStar(out: NodeJS.WriteStream): void {
+  if (!out.isTTY) return;
+  const marker = join(tmpdir(), "ccblame-star");
+  try {
+    if (Date.now() - statSync(marker).mtimeMs < 3 * 86_400_000) return;
+  } catch {
+    // no marker yet → first run, fall through and show
+  }
+  try {
+    writeFileSync(marker, "");
+  } catch {
+    return; // can't persist the throttle → stay silent rather than risk per-run spam
+  }
+  out.write(pc.bold(pc.yellow("⭐ useful? star ccblame → https://github.com/rupaut98/ccblame\n")));
+}
 
 export const money = (n: number): string => `$${n.toFixed(2)}`;
 
