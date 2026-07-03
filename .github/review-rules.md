@@ -99,10 +99,13 @@ pricing` warning + the red `?` flag). `<synthetic>` is free-not-unpriced.
 
 - Flag any change that lets an unknown model contribute `$0` **without** setting `unpriced` / firing
   the warning — that turns an undercount into a number users trust.
-- Pricing lives in `pricing.json` keyed by family; the resolver collapses version/date suffixes.
-  Rate changes must cite a source. (Do **not** flag flat-vs-tiered structure as a bug — that's a
-  deliberate product decision, not an invariant.)
-- See `cost.ts` (`priceUsage`, `resolveFamily`) and the warning in `cli.ts` / flag in `render.ts`.
+- Pricing lives in `pricing.json` keyed **per model** (plus a `families` flagship-fallback for bare
+  aliases), generated from LiteLLM by `scripts/gen-pricing.ts` and refreshed via CI. A model newer
+  than the snapshot must be **unpriced**, never guessed at a nearest-version rate. Generated/edited
+  rates pass `anchorProblems` sanity bounds. (Do **not** flag flat-vs-tiered structure as a bug —
+  the LiteLLM `>200k` tier is deliberately dropped; ccblame's flat schema can't apply it.)
+- See `cost.ts` (`priceUsage`, `resolveRate`, `anchorProblems`) and the warning in `cli.ts` / flag
+  in `render.ts`.
 
 ### 6. Spawn safety — every external binary tolerates ENOENT
 
