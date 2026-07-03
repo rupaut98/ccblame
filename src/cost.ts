@@ -42,12 +42,7 @@ export function resolveRate(model: string): Resolved {
   const dated = base !== m ? MODELS[base] : undefined;
   if (dated) return { key: base, rate: dated };
 
-  if (m.includes("fable") || m.includes("mythos")) {
-    const fable = MODELS.fable ?? FAMILIES.fable;
-    return fable ? { key: "fable", rate: fable } : null;
-  }
-
-  const fam = FAMILIES[m];
+  const fam = FAMILIES[m]; // bare family alias only; never a versioned id
   if (fam) return { key: m, rate: fam };
 
   return null;

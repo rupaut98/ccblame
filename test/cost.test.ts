@@ -25,12 +25,13 @@ describe("resolveRate", () => {
     expect(key("claude-opus-4-5-v2")).toBeNull(); // non-8-digit suffix ≠ dated alias
     expect(key("claude-opus-4")).toBeNull(); // bare-but-versionless family stem, not a key
     expect(key("claude-3-5-sonnet-20241022")).toBeNull(); // EOL, not in LiteLLM → unpriced, not guessed
+    expect(key("claude-fable-6")).toBeNull(); // unknown fable point-release → unpriced, not the fable rate
+    expect(key("claude-mythos-5")).toBeNull(); // Glasswing-only, not a Claude Code surface → unpriced, not guessed
     expect(key("gpt-5")).toBeNull(); // non-Anthropic
   });
 
-  it("handles fable/mythos and synthetic", () => {
+  it("handles fable and synthetic", () => {
     expect(key("claude-fable-5")).toBe("claude-fable-5"); // exact, from LiteLLM
-    expect(key("claude-mythos-1")).toBe("fable"); // aliased to the fable rate
     expect(key("<synthetic>")).toBe("<synthetic>");
     expect(key("")).toBe("<synthetic>");
   });
@@ -38,6 +39,7 @@ describe("resolveRate", () => {
   it("falls back to the flagship rate only for a bare family alias", () => {
     expect(key("opus")).toBe("opus");
     expect(key("haiku")).toBe("haiku");
+    expect(key("fable")).toBe("fable"); // bare fable alias resolves via the family fallback
   });
 });
 
