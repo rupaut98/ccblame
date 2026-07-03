@@ -16,7 +16,7 @@ import {
 } from "./render.js";
 import type { Invocation } from "./types.js";
 
-// The context re-priming tax for one invocation: just the cache-write tokens, priced.
+// The context re-priming cost for one invocation: just the cache-write tokens, priced.
 export const primeOf = (i: Invocation): number =>
   priceUsage(
     { input: 0, output: 0, cache5m: i.tokens.cache5m, cache1h: i.tokens.cache1h, cacheRead: 0 },
@@ -29,12 +29,12 @@ interface SubGroup {
   label: string;
   invs: Invocation[];
   cost: number;
-  prime: number; // summed re-priming tax — the thing browse navigates by
+  prime: number; // summed re-priming (cache-write) cost — the thing browse navigates by
 }
 
-type SortMode = "cost" | "tax";
+type SortMode = "cost" | "writes";
 
-/** Group subagent invocations by a key, summing cost + re-priming tax; sorted by the chosen mode. */
+/** Group subagent invocations by a key, summing cost + re-priming (cache-write) cost; sorted by the chosen mode. */
 export function groupSubs(
   invs: Invocation[],
   keyFn: (i: Invocation) => [string, string],
@@ -54,36 +54,36 @@ export function groupSubs(
   }
   const rows = [...map.values()];
   rows.sort(
-    sort === "tax"
+    sort === "writes"
       ? (a, b) => b.prime / (b.cost || 1) - a.prime / (a.cost || 1)
       : (a, b) => b.cost - a.cost,
   );
   return rows;
 }
 
-// A 10-cell magnitude bar: yellow = re-priming tax, green = productive spend, dim = headroom.
+// A 10-cell magnitude bar: yellow = cache writes (re-priming), green = other spend, dim = headroom.
 export function bar(cost: number, prime: number, max: number, width = 10): string {
   if (max <= 0) return pc.dim("░".repeat(width));
   const filled = Math.min(width, Math.max(cost > 0 ? 1 : 0, Math.round((cost / max) * width)));
-  const tax = Math.min(filled, cost > 0 ? Math.round((prime / cost) * filled) : 0);
+  const writes = Math.min(filled, cost > 0 ? Math.round((prime / cost) * filled) : 0);
   return (
-    pc.yellow("█".repeat(tax)) +
-    pc.green("█".repeat(filled - tax)) +
+    pc.yellow("█".repeat(writes)) +
+    pc.green("█".repeat(filled - writes)) +
     pc.dim("░".repeat(width - filled))
   );
 }
 
-const taxLine = (cost: number, prime: number): string =>
+const reprimeLine = (cost: number, prime: number): string =>
   `${pc.yellow("▸")} ${pc.dim("context re-priming:")} ${pc.bold(money(prime))} ${pc.dim(
     `(${pct(prime, cost)} of ${money(cost)})`,
   )}`;
 
 const groupPreview = (g: SubGroup): string =>
-  `${taxLine(g.cost, g.prime)}\n\n${renderGroups(groupByType(g.invs), g.cost, "AGENT TYPE", false)}`;
+  `${reprimeLine(g.cost, g.prime)}\n\n${renderGroups(groupByType(g.invs), g.cost, "AGENT TYPE", false)}`;
 
 const sessionDetail = (g: SubGroup): string => {
   const ranked = [...g.invs].sort((a, b) => b.cost - a.cost);
-  return `${taxLine(g.cost, g.prime)}\n\n${renderTable(ranked, g.cost)}\n${renderFooter("session subtotal", g.cost)}`;
+  return `${reprimeLine(g.cost, g.prime)}\n\n${renderTable(ranked, g.cost)}\n${renderFooter("session subtotal", g.cost)}`;
 };
 
 const grpDisplay = (g: SubGroup, max: number): string =>
@@ -184,8 +184,8 @@ function showDetail(text: string): boolean {
 }
 
 /**
- * Interactive fzf drill-down navigated by re-priming tax: top level pivots across
- * project/day/type/model/workflow (^t), ^s sorts cost⇄tax%, drill group → sessions → Enter pages the
+ * Interactive fzf drill-down navigated by re-priming (cache-write) share: top level pivots across
+ * project/day/type/model/workflow (^t), ^s sorts cost⇄writes%, drill group → sessions → Enter pages the
  * full table, esc steps up (quits at top). Returns false if fzf is absent so the caller falls back.
  */
 export function browse(subs: Invocation[]): boolean {
@@ -197,13 +197,13 @@ export function browse(subs: Invocation[]): boolean {
   }
   const globalSub = subs.reduce((s, i) => s + i.cost, 0);
   const globalPrime = subs.reduce((s, i) => s + primeOf(i), 0);
-  const banner = `${pc.bold(pc.green(money(globalSub)))} ${pc.dim("subagent spend")} · ${pc.yellow(`${pct(globalPrime, globalSub)} re-priming tax`)}`;
+  const banner = `${pc.bold(pc.green(money(globalSub)))} ${pc.dim("subagent spend")} · ${pc.yellow(`${pct(globalPrime, globalSub)} on re-priming (cache writes)`)}`;
 
   const dir = mkdtempSync(join(tmpdir(), "ccblame-"));
   let dimIndex = 0;
   let sort: SortMode = "cost";
   const header = (hints: string): string =>
-    `${banner}  ${pc.dim(`[sort: ${sort === "tax" ? "tax%" : "cost"}]`)}\n${pc.dim(hints)}`;
+    `${banner}  ${pc.dim(`[sort: ${sort === "writes" ? "re-priming%" : "cost"}]`)}\n${pc.dim(hints)}`;
 
   // Level 1: sessions within a chosen group. "back" (esc), "missing" (no fzf), "quit" (no pager).
   const sessions = (group: SubGroup): "back" | "missing" | "quit" => {
@@ -225,7 +225,7 @@ export function browse(subs: Invocation[]): boolean {
       });
       if ("fzfMissing" in r) return "missing";
       if ("action" in r) {
-        sort = sort === "cost" ? "tax" : "cost";
+        sort = sort === "cost" ? "writes" : "cost";
         continue;
       }
       if (r.key === null) return "back";
@@ -257,7 +257,7 @@ export function browse(subs: Invocation[]): boolean {
           do {
             dimIndex = (dimIndex + 1) % DIMS.length;
           } while (DIMS[dimIndex]!.filter && subs.filter(DIMS[dimIndex]!.filter!).length === 0);
-        } else sort = sort === "cost" ? "tax" : "cost";
+        } else sort = sort === "cost" ? "writes" : "cost";
         continue;
       }
       if (r.key === null) return true; // esc at the top → quit

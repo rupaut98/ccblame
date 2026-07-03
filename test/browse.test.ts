@@ -44,15 +44,15 @@ describe("groupSubs", () => {
     expect(groups[1]!.invs).toHaveLength(2);
   });
 
-  it("sort:'tax' ranks by tax%, not absolute cost", () => {
+  it("sort:'writes' ranks by re-priming%, not absolute cost", () => {
     const prime = (frac: number) => ({ ...emptyUsage(), cache5m: frac });
     const groups = groupSubs(
       [
-        inv({ project: "big", cost: 100, tokens: prime(1) }), // tiny tax%
-        inv({ project: "leaky", cost: 5, tokens: prime(1_000_000) }), // high tax%
+        inv({ project: "big", cost: 100, tokens: prime(1) }), // tiny re-priming%
+        inv({ project: "leaky", cost: 5, tokens: prime(1_000_000) }), // high re-priming%
       ],
       (i) => [i.project, i.project],
-      "tax",
+      "writes",
     );
     expect(groups[0]!.key).toBe("leaky"); // worst offender first, despite lower spend
   });

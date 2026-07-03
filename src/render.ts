@@ -23,7 +23,8 @@ export function truncate(s: string, n: number): string {
   return clean.length > n ? `${clean.slice(0, n - 1)}…` : clean;
 }
 
-// Cache writes (5m+1h) are the context-priming tax paid per spawn; reads are cheaper context reuse.
+// Cache writes (5m+1h) are what a spawn pays to reload context; reads are the cheaper reuse.
+// Upper bound on re-priming cost — a multi-turn subagent reads part of that written cache back cheaply.
 const cachePrime = (i: Invocation): number => i.tokens.cache5m + i.tokens.cache1h;
 const flag = (i: Invocation): string => (i.unpricedModel ? pc.red("?") : "");
 
@@ -64,7 +65,7 @@ export function renderTable(invs: Invocation[], grand: number): string {
   return table.toString();
 }
 
-/** Total Claude Code spend split into main thread vs subagents, with the context re-priming tax. */
+/** Total Claude Code spend split into main thread vs subagents, with the context re-priming (cache-write) share. */
 export function renderHeadline(
   grand: number,
   mainCost: number,
