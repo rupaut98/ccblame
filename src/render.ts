@@ -1,5 +1,5 @@
-import { statSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, statSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import Table from "cli-table3";
 import pc from "picocolors";
@@ -10,17 +10,20 @@ const WIDE = (process.stdout.columns ?? 100) >= 100;
 
 /**
  * Print a star line after a real ranking. TTY-only (skips piped/JSON output),
- * throttled to once per 3 days via an mtime marker in tmpdir; fails closed on FS errors.
+ * throttled to once per 3 days via an mtime marker; fails closed on FS errors.
  */
 export function maybeStar(out: NodeJS.WriteStream): void {
   if (!out.isTTY) return;
-  const marker = join(tmpdir(), "ccblame-star");
+  // Per-user path, not shared /tmp (a fixed name there invites cross-user suppression + symlink truncation on Linux).
+  const dir = join(homedir(), ".cache", "ccblame");
+  const marker = join(dir, "star");
   try {
     if (Date.now() - statSync(marker).mtimeMs < 3 * 86_400_000) return;
   } catch {
     // no marker yet → first run, fall through and show
   }
   try {
+    mkdirSync(dir, { recursive: true });
     writeFileSync(marker, "");
   } catch {
     return; // can't persist the throttle → stay silent rather than risk per-run spam

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { maybeStar } from "../src/render.js";
 
@@ -18,7 +18,7 @@ function fakeTTY(isTTY: boolean) {
 
 describe("maybeStar", () => {
   it("prints once then throttles, and stays silent when piped", () => {
-    rmSync(join(tmpdir(), "ccblame-star"), { force: true });
+    rmSync(join(homedir(), ".cache", "ccblame", "star"), { force: true });
 
     const first = fakeTTY(true);
     maybeStar(first);
