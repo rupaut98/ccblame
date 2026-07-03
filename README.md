@@ -16,31 +16,17 @@
 npx ccblame
 ```
 
-```
-$47.32 total Claude Code spend
-  main thread $12.05 (25%)   ·   38 subagents $35.27 (75%)
-▸ of which context re-priming (cache writes): $18.90 (54% of subagent spend)
-
-  #  AGENT              TASK                     MODEL     IN     OUT   PRIME   READ    COST    %
-  1  code-reviewer      audit auth module        opus-4-8  4.1k   9.8k  180.0k  1.2M   $6.40  18%
-  2  general-purpose    research pricing APIs     opus-4-8  2.0k   3.1k  120.0k  890.0k  $4.10  12%
-  3  test-runner        run and fix suite         sonnet-5  8.2k   1.4k   60.0k  2.1M   $2.05   6%
-  …
-  ────────────────────────────
-  subagents subtotal  $35.27
-```
-
 ## The problem
 
 You kick off a workflow before lunch. It fans out subagents — a reviewer, a couple of researchers, a test-runner — and each of *those* spawns more. A `/loop` in one session, a scheduled task in another, a GitHub Action answering PRs. You come back and your weekly quota is halfway gone. **Which one did that?**
 
-Here's what makes it expensive *and* invisible: **every subagent starts with a cold cache.** A cache *write* costs 1.25×–2× the base input rate; a cache *read* is ~0.1× ([prompt-caching docs](https://code.claude.com/docs/en/prompt-caching)). A subagent doesn't inherit the parent's warm cache — it re-primes context from scratch on its first turn, paying the write premium on every single spawn. Anthropic's own multi-agent research system used [~15× more tokens than chat](https://www.anthropic.com/engineering/multi-agent-research-system). The tax is real, and no tool shows you *who* paid it.
+Here's what makes it expensive *and* invisible: **every subagent starts with a cold cache.** A cache *write* costs 1.25×–2× the base input rate; a cache *read* is ~0.1× ([prompt-caching docs](https://code.claude.com/docs/en/prompt-caching)). A subagent doesn't inherit the parent's warm cache — it re-primes context from scratch, paying the cache-write premium on every spawn (a multi-turn agent recoups part of it via cheap reads on later turns, but the cold-start write repeats each time). Anthropic's own multi-agent research system used [~15× more tokens than chat](https://www.anthropic.com/engineering/multi-agent-research-system). That cost is real, and no tool shows you *who* paid it.
 
 ## Why the existing tools don't answer this
 
 They give you plenty of **totals** — and almost no **attribution**.
 
-| | Daily/session totals | Per-model split | **Per-subagent $** | **Spawn tree** | **Re-priming tax** |
+| | Daily/session totals | Per-model split | **Per-subagent $** | **Spawn tree** | **Re-priming (cache writes)** |
 |---|:---:|:---:|:---:|:---:|:---:|
 | Claude Code `/cost` | ✓ | ✓ | ✗ | ✗ | shows cache-write tokens, not as a spawn cost |
 | Claude Code `/usage` | ✓ | — | flat % by *category* | ✗ | ✗ |
@@ -53,8 +39,8 @@ They give you plenty of **totals** — and almost no **attribution**.
 
 ## What you get
 
-- **Ranked table** — every subagent invocation, costliest first. `PRIME` is the re-priming tax (cache-write tokens), `READ` is the cheap cache reuse, `%` is each agent's share of subagent spend.
-- **Headline** — total split into main-thread vs. subagent spend, with the pure re-priming share called out: `▸ context re-priming (cache writes): $18.90 (54% of subagent spend)`.
+- **Ranked table** — every subagent invocation, costliest first. `PRIME` is the re-priming cost (cache-write tokens), `READ` is the cheap cache reuse, `%` is each agent's share of subagent spend.
+- **Headline** — total split into main-thread vs. subagent spend, with the re-priming (cache-write) share called out: `▸ context re-priming (cache writes): $18.90 (54% of subagent spend)`.
 - **Spawn tree** (`--tree`) — the parent→child hierarchy, each node carrying its own cost *and* its subtree's, so you see which *branch* is heavy, not just which leaf.
 - **Breakdowns** (`--by type | workflow | project | model | day`) — the dimensions that answer "who?".
 - **Interactive drill-down** (`ccblame browse`, needs [`fzf`](https://github.com/junegunn/fzf)) — pivot through days, sessions, and agents live. No fzf? It falls back to the plain table.
@@ -90,9 +76,11 @@ Date boundaries for `--since`/`--until` and `--by day` are **UTC**. `--top N` tr
 
 The dollar figures are an **estimate reconciled from your local logs** (main-thread + subagent spend always sums to the grand total), not a copy of your billed Anthropic invoice. Unpriced or unknown models are flagged loudly (`?`) and counted as `$0`, so a total is always a floor — never a silent undercount.
 
-## How the re-priming tax is computed
+## How re-priming cost is computed
 
 Each usage line records cache-write tokens in two TTL buckets — ephemeral 5-minute and 1-hour. ccblame sums those into `PRIME` (the write cost a spawn pays to load context) and keeps `READ` (`cacheRead`) separate. The headline prices those write tokens and reports them as a share of subagent spend — the number no other tool isolates: not "how many cache tokens," but "how much did re-priming subagents cost you."
+
+It's an **upper bound**: a subagent that runs several turns reads part of that written cache back cheaply ([caching breaks even after ~1–2 reads](https://docs.claude.com/en/docs/build-with-claude/prompt-caching)), so not every write dollar is lost. But the cold-start write repeats on *every* spawn — and that per-spawn re-priming is exactly the cost multi-agent workflows quietly rack up.
 
 ## Privacy
 
@@ -121,7 +109,7 @@ Reads ~/.claude (or $CLAUDE_CONFIG_DIR) locally. Never sends data anywhere.
       "depth": 1,
       "parent_agent_id": "…",
       "tokens": { "input": 4100, "output": 9800, "cache5m": 180000, "cache1h": 0, "cacheRead": 1200000 },
-      "cost_usd": 6.40,
+      "cost_usd": 1.99,
       "unpriced_model": false
     }
   ]
