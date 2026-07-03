@@ -13,6 +13,7 @@ import {
   groupByWorkflow,
 } from "./aggregate.js";
 import { browse, primeOf } from "./browse.js";
+import { pricingSnapshot } from "./cost.js";
 import { searchDirs } from "./discover.js";
 import {
   groupsToJSON,
@@ -117,6 +118,7 @@ function warnings(ds: Dataset, out: NodeJS.WriteStream): void {
       `${pc.dim(`note: Claude Code keeps transcripts ~${d} days (cleanupPeriodDays); older history is gone. Raise it in ~/.claude/settings.json (e.g. 3650) to keep more.`)}\n`,
     );
   }
+  out.write(`${pc.dim(`pricing snapshot: ${pricingSnapshot()} (litellm)`)}\n`);
 }
 
 function main(): void {
