@@ -222,7 +222,8 @@ function main(): void {
     return;
   }
 
-  // Priming tax: the slice of subagent cost spent re-loading context (cache-write tokens).
+  // Re-priming: the slice of subagent cost spent writing context into cache (upper bound; multi-turn
+  // agents recoup part via cheap reads).
   const primeCost = subInvsAll.reduce((s, i) => s + primeOf(i), 0);
   const headline = renderHeadline(grand, mainCost, subCost, subInvsAll.length, primeCost);
 
