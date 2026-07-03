@@ -4,6 +4,7 @@ import { join } from "node:path";
 import Table from "cli-table3";
 import pc from "picocolors";
 import type { Group, TreeNode } from "./aggregate.js";
+import { pricingSnapshot } from "./cost.js";
 import { type Invocation, totalTokens } from "./types.js";
 
 const WIDE = (process.stdout.columns ?? 100) >= 100;
@@ -193,6 +194,7 @@ export function renderFooter(label: string, amount: number): string {
 export function groupsToJSON(by: string, total: number, groups: Group[]) {
   return {
     by,
+    pricing_snapshot: pricingSnapshot(),
     total_cost_usd: total,
     groups: groups.map((g) => ({
       key: g.key,
@@ -209,6 +211,7 @@ export function groupsToJSON(by: string, total: number, groups: Group[]) {
 
 export function toJSON(subInvs: Invocation[], mainCost: number, subCost: number) {
   return {
+    pricing_snapshot: pricingSnapshot(),
     total_cost_usd: mainCost + subCost,
     main_thread_cost_usd: mainCost,
     subagent_cost_usd: subCost,
