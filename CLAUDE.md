@@ -13,6 +13,7 @@ Never commit or push automatically. Stage changes, show the proposed commit mess
 - lint: `biome check src test`
 - typecheck: `tsc --noEmit`
 - build: `tsdown`
+- refresh pricing: `bun scripts/gen-pricing.ts` (regenerates `src/pricing.json` from LiteLLM; also runs weekly in CI)
 
 CI runs lint, typecheck, test, and build — keep all four green.
 
