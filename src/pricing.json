@@ -1,7 +1,7 @@
 {
   "_meta": {
     "source": "LiteLLM model_prices_and_context_window.json (anthropic)",
-    "lastUpdated": "2026-07-03",
+    "lastUpdated": "2026-07-20",
     "unit": "USD per million tokens",
     "note": "Keyed by exact model id; families = newest flagship per family (fallback for bare aliases). cache1h derived as 2× input (Anthropic's fixed 1h rate). LiteLLM >200k long-context tier omitted (ccblame's flat schema can't apply a per-request tier). A model LiteLLM doesn't list is treated as deprecated and left unpriced."
   },
@@ -14,11 +14,11 @@
       "cacheRead": 0.5
     },
     "sonnet": {
-      "input": 3,
-      "output": 15,
-      "cache5m": 3.75,
-      "cache1h": 6,
-      "cacheRead": 0.3
+      "input": 2,
+      "output": 10,
+      "cache5m": 2.5,
+      "cache1h": 4,
+      "cacheRead": 0.2
     },
     "haiku": {
       "input": 1,
@@ -149,11 +149,11 @@
       "cacheRead": 0.3
     },
     "claude-sonnet-5": {
-      "input": 3,
-      "output": 15,
-      "cache5m": 3.75,
-      "cache1h": 6,
-      "cacheRead": 0.3
+      "input": 2,
+      "output": 10,
+      "cache5m": 2.5,
+      "cache1h": 4,
+      "cacheRead": 0.2
     }
   }
 }
